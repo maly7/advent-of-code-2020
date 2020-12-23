@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -27,7 +28,10 @@ func checkValid(passport string) bool {
 			return false
 		}
 
-		if !rule.check(getField(fields, rule.field)) {
+		field := getField(fields, rule.field)
+
+		if !rule.check(field) {
+			fmt.Printf("Invalid rule: %s with value %s\n", rule.field, field)
 			return false
 		}
 	}
@@ -38,11 +42,21 @@ func checkValid(passport string) bool {
 func getField(passportFields []string, field string) string {
 	for _, s := range passportFields {
 		if strings.Contains(s, field) {
-			return strings.Split(s, field)[0]
+			return strings.Split(s, field)[1]
 		}
 	}
 
 	return ""
+}
+
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
 }
 
 type rule struct {
@@ -50,28 +64,40 @@ type rule struct {
 	check func(string) bool
 }
 
+var validHcl = regexp.MustCompile("#[a-zA-Z0-9]{6}")
+var validEcl = []string{"amb", "blu", "brn", "gry", "grn", "hzl", "oth"}
+var validPid = regexp.MustCompile("[0-9]{9}")
+
 var Rules = []rule{
 	{"byr:", func(s string) bool {
-		y, _ := strconv.Atoi(s)
-		return y >= 1920 && y <= 2002
+		y, e := strconv.Atoi(s)
+		return e == nil && y >= 1920 && y <= 2002
 	}}, {"iyr:", func(s string) bool {
-		y, _ := strconv.Atoi(s)
-		return y >= 2010 && y <= 2020
+		y, e := strconv.Atoi(s)
+		return e == nil && y >= 2010 && y <= 2020
 	}}, {"eyr:", func(s string) bool {
-		y, _ := strconv.Atoi(s)
-		return y >= 2020 && y <= 2040
+		y, e := strconv.Atoi(s)
+		return e == nil && y >= 2020 && y <= 2030
 	},
 	}, {"hgt:", func(s string) bool {
-		return true
+		if strings.HasSuffix(s, "in") {
+			hgt, _ := strconv.Atoi(strings.Split(s, "in")[0])
+			return hgt >= 59 && hgt <= 76
+		} else if strings.HasSuffix(s, "cm") {
+			hgt, _ := strconv.Atoi(strings.Split(s, "cm")[0])
+			return hgt >= 150 && hgt <= 193
+		}
+
+		return false
 	},
 	}, {"hcl:", func(s string) bool {
-		return true
+		return len(s) == 7 && validHcl.MatchString(s)
 	},
 	}, {"ecl:", func(s string) bool {
-		return true
+		return contains(validEcl, s)
 	},
 	}, {"pid:", func(s string) bool {
-		return true
+		return len(s) == 9 && validPid.MatchString(s)
 	}},
 }
 
